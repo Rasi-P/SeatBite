@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import AuditLog, User
+from apps.orders.models import CustomerSession
 from .models import Screen, Seat, Venue
 
 
@@ -72,3 +76,96 @@ class ScreenCreationTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Seat.objects.count(), 0)
+
+    def test_manager_edits_screen_metadata_without_rewriting_seats(self):
+        screen = Screen.objects.create(
+            venue=self.venue,
+            name="Old Name",
+            screen_number=2,
+            total_rows=2,
+            total_columns=3,
+        )
+        Seat.objects.create(
+            screen=screen,
+            row_label="A",
+            seat_number=1,
+            seat_code="A01",
+        )
+
+        response = self.client.patch(
+            f"/api/v1/screens/{screen.pk}/",
+            {"name": "Premium Screen", "screen_number": 7, "status": "INACTIVE"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        screen.refresh_from_db()
+        self.assertEqual(screen.name, "Premium Screen")
+        self.assertEqual(screen.screen_number, 7)
+        self.assertEqual(screen.status, Screen.Status.INACTIVE)
+        self.assertEqual(screen.seats.count(), 1)
+        self.assertTrue(AuditLog.objects.filter(entity_id=str(screen.pk), action="SCREEN_UPDATED").exists())
+
+    def test_rejects_dimension_changes_after_screen_creation(self):
+        screen = Screen.objects.create(
+            venue=self.venue,
+            name="Screen 2",
+            screen_number=2,
+            total_rows=2,
+            total_columns=3,
+        )
+
+        response = self.client.patch(
+            f"/api/v1/screens/{screen.pk}/",
+            {"total_rows": 4},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        screen.refresh_from_db()
+        self.assertEqual(screen.total_rows, 2)
+
+    def test_manager_deletes_screen_without_customer_history(self):
+        screen = Screen.objects.create(
+            venue=self.venue,
+            name="Temporary Screen",
+            screen_number=3,
+            total_rows=1,
+            total_columns=2,
+        )
+        Seat.objects.bulk_create([
+            Seat(screen=screen, row_label="A", seat_number=1, seat_code="A01"),
+            Seat(screen=screen, row_label="A", seat_number=2, seat_code="A02"),
+        ])
+        screen_id = screen.pk
+
+        response = self.client.delete(f"/api/v1/screens/{screen_id}/")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Screen.objects.filter(pk=screen_id).exists())
+        self.assertFalse(Seat.objects.filter(screen_id=screen_id).exists())
+        self.assertTrue(AuditLog.objects.filter(entity_id=str(screen_id), action="SCREEN_DELETED").exists())
+
+    def test_rejects_deletion_when_screen_has_customer_history(self):
+        screen = Screen.objects.create(
+            venue=self.venue,
+            name="In Use",
+            screen_number=6,
+            total_rows=1,
+            total_columns=1,
+        )
+        seat = Seat.objects.create(
+            screen=screen,
+            row_label="A",
+            seat_number=1,
+            seat_code="A01",
+        )
+        CustomerSession.objects.create(
+            seat=seat,
+            expires_at=timezone.now() + timedelta(hours=1),
+        )
+
+        response = self.client.delete(f"/api/v1/screens/{screen.pk}/")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(Screen.objects.filter(pk=screen.pk).exists())

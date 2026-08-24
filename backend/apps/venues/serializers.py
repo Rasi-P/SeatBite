@@ -28,6 +28,17 @@ class ScreenSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Seats per row must be between 1 and 50.")
         return value
 
+    def validate(self, attrs):
+        if self.instance:
+            immutable_changes = {
+                field: "This field cannot be changed after seats and QR codes are generated."
+                for field in ("venue", "total_rows", "total_columns")
+                if field in attrs and attrs[field] != getattr(self.instance, field)
+            }
+            if immutable_changes:
+                raise serializers.ValidationError(immutable_changes)
+        return attrs
+
 
 class SeatSerializer(serializers.ModelSerializer):
     screen_name = serializers.CharField(source="screen.name", read_only=True)

@@ -1,5 +1,7 @@
 import {
+  DeleteOutlined,
   DownloadOutlined,
+  EditOutlined,
   PlusOutlined,
   QrcodeOutlined,
   ReloadOutlined,
@@ -22,6 +24,8 @@ interface Screen {
   screen_number: number;
   venue_name: string;
   seat_count: number;
+  total_rows: number;
+  total_columns: number;
   status: string;
 }
 
@@ -44,6 +48,8 @@ interface ScreenForm {
   status: "ACTIVE" | "INACTIVE";
 }
 
+type ScreenEditForm = Pick<ScreenForm, "name" | "screen_number" | "status">;
+
 export default function VenueManager() {
   const { user } = useAuth();
   const [screens, setScreens] = useState<Screen[]>([]);
@@ -51,15 +57,21 @@ export default function VenueManager() {
   const [screen, setScreen] = useState<number | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [showAddScreen, setShowAddScreen] = useState(false);
+  const [editingScreen, setEditingScreen] = useState<Screen | null>(null);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm<ScreenForm>();
+  const [editForm] = Form.useForm<ScreenEditForm>();
+  const [modal, modalContext] = Modal.useModal();
   const rows = Form.useWatch("total_rows", form) || 0;
   const columns = Form.useWatch("total_columns", form) || 0;
 
   const loadScreens = async (preferredScreen?: number) => {
     const data = await apiList<Screen>("/screens/");
     setScreens(data);
-    setScreen((current) => preferredScreen || current || data[0]?.id || null);
+    setScreen((current) => {
+      const requested = preferredScreen || current;
+      return data.some((item) => item.id === requested) ? requested : data[0]?.id || null;
+    });
   };
 
   useEffect(() => {
@@ -111,6 +123,57 @@ export default function VenueManager() {
     }
   };
 
+  const openEditScreen = (item: Screen) => {
+    editForm.setFieldsValue({
+      name: item.name,
+      screen_number: item.screen_number,
+      status: item.status as ScreenEditForm["status"],
+    });
+    setEditingScreen(item);
+  };
+
+  const editScreen = async (values: ScreenEditForm) => {
+    if (!editingScreen) return;
+    setSaving(true);
+    try {
+      const updated = await apiFetch<Screen>(`/screens/${editingScreen.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(values),
+      });
+      await loadScreens(updated.id);
+      setEditingScreen(null);
+      message.success(`${updated.name} updated.`);
+    } catch {
+      message.error("Could not update the screen. The screen number may already be in use.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDeleteScreen = (item: Screen) => {
+    modal.confirm({
+      title: `Delete ${item.name}?`,
+      content: (
+        <span>
+          This permanently removes the screen and its {item.seat_count} seats. Screens with customer
+          sessions or order history cannot be deleted.
+        </span>
+      ),
+      okText: "Delete screen",
+      okButtonProps: { danger: true },
+      cancelText: "Keep screen",
+      async onOk() {
+        try {
+          await apiFetch(`/screens/${item.id}/`, { method: "DELETE" });
+          await loadScreens();
+          message.success(`${item.name} deleted.`);
+        } catch {
+          message.error("This screen has customer or order history. Mark it inactive instead.");
+        }
+      },
+    });
+  };
+
   const regenerate = async (seat: Seat) => {
     await apiFetch(`/seats/${seat.id}/regenerate_qr/`, { method: "POST", body: "{}" });
     message.success(`QR rotated for ${seat.seat_code}`);
@@ -156,6 +219,7 @@ export default function VenueManager() {
 
   return (
     <OpsLayout section="admin">
+      {modalContext}
       <header className="ops-header">
         <div>
           <span className="eyebrow">VENUE STRUCTURE</span>
@@ -174,17 +238,35 @@ export default function VenueManager() {
 
       <section className="screen-strip">
         {screens.map((item) => (
-          <button
+          <article
             className={screen === item.id ? "active" : ""}
-            onClick={() => setScreen(item.id)}
             key={item.id}
           >
-            <span><QrcodeOutlined /></span>
-            <div>
-              <strong>{item.name}</strong>
-              <small>{item.seat_count} seats · {item.status}</small>
+            <button className="screen-select" onClick={() => setScreen(item.id)}>
+              <span><QrcodeOutlined /></span>
+              <div>
+                <strong>{item.name}</strong>
+                <small>{item.seat_count} seats · {item.status}</small>
+              </div>
+            </button>
+            <div className="screen-actions">
+              <Button
+                type="text"
+                size="small"
+                aria-label={`Edit ${item.name}`}
+                icon={<EditOutlined />}
+                onClick={() => openEditScreen(item)}
+              />
+              <Button
+                type="text"
+                danger
+                size="small"
+                aria-label={`Delete ${item.name}`}
+                icon={<DeleteOutlined />}
+                onClick={() => confirmDeleteScreen(item)}
+              />
             </div>
-          </button>
+          </article>
         ))}
       </section>
 
@@ -259,6 +341,41 @@ export default function VenueManager() {
           <Form.Item name="status" hidden><Input /></Form.Item>
           <Button type="primary" htmlType="submit" size="large" block loading={saving}>
             Create screen and seats
+          </Button>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`Edit ${editingScreen?.name || "screen"}`}
+        open={!!editingScreen}
+        onCancel={() => setEditingScreen(null)}
+        footer={null}
+        destroyOnHidden
+      >
+        <Form form={editForm} layout="vertical" onFinish={editScreen}>
+          <div className="form-row screen-basics">
+            <Form.Item name="name" label="Screen name" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="screen_number" label="Screen number" rules={[{ required: true }]}>
+              <InputNumber min={1} precision={0} />
+            </Form.Item>
+          </div>
+          <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+            <Select options={[
+              { value: "ACTIVE", label: "Active" },
+              { value: "INACTIVE", label: "Inactive" },
+            ]} />
+          </Form.Item>
+          <div className="screen-layout-lock">
+            <QrcodeOutlined />
+            <div>
+              <strong>{editingScreen?.total_rows} rows × {editingScreen?.total_columns} seats</strong>
+              <span>Layout dimensions are locked to preserve issued QR codes and order history.</span>
+            </div>
+          </div>
+          <Button type="primary" htmlType="submit" size="large" block loading={saving}>
+            Save screen
           </Button>
         </Form>
       </Modal>

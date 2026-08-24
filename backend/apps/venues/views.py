@@ -86,6 +86,53 @@ class ScreenViewSet(VenueScopedMixin, viewsets.ModelViewSet):
             },
         )
 
+    def perform_update(self, serializer):
+        screen = serializer.save()
+        AuditLog.objects.create(
+            user=self.request.user,
+            action="SCREEN_UPDATED",
+            entity_type="Screen",
+            entity_id=str(screen.pk),
+            metadata={
+                "venue": screen.venue.name,
+                "screen": screen.name,
+                "fields": list(self.request.data.keys()),
+            },
+        )
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        scoped_screen = self.get_object()
+        screen = Screen.objects.select_for_update().get(pk=scoped_screen.pk)
+        has_history = screen.orders.exists() or screen.seats.filter(
+            customer_sessions__isnull=False
+        ).exists()
+        if has_history:
+            return Response(
+                {
+                    "detail": (
+                        "This screen has customer sessions or order history and cannot be deleted. "
+                        "Mark it inactive instead."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        metadata = {
+            "venue": screen.venue.name,
+            "screen": screen.name,
+            "seat_count": screen.seats.count(),
+        }
+        entity_id = str(screen.pk)
+        screen.delete()
+        AuditLog.objects.create(
+            user=request.user,
+            action="SCREEN_DELETED",
+            entity_type="Screen",
+            entity_id=entity_id,
+            metadata=metadata,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class SeatViewSet(VenueScopedMixin, viewsets.ModelViewSet):
     serializer_class = SeatSerializer
