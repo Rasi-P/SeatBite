@@ -54,10 +54,21 @@ class Command(BaseCommand):
         screen_specs = [(1, 10, 12, 120), (2, 9, 12, 100), (3, 10, 15, 150)]
         screens = []
         for number, rows, columns, count in screen_specs:
-            screen, _ = Screen.objects.update_or_create(
-                venue=venue, screen_number=number,
-                defaults={"name": f"Screen {number}", "total_rows": rows, "total_columns": columns},
-            )
+            screen = Screen.objects.filter(
+                venue=venue, screen_number=number, is_deleted=False
+            ).first()
+            if not screen:
+                screen = Screen.objects.filter(
+                    venue=venue, screen_number=number
+                ).order_by("is_deleted").first()
+            if not screen:
+                screen = Screen.objects.create(
+                    venue=venue,
+                    screen_number=number,
+                    name=f"Screen {number}",
+                    total_rows=rows,
+                    total_columns=columns,
+                )
             screens.append(screen)
             created = 0
             for row_index in range(rows):

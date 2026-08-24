@@ -142,11 +142,16 @@ class ScreenCreationTests(TestCase):
         response = self.client.delete(f"/api/v1/screens/{screen_id}/")
 
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Screen.objects.filter(pk=screen_id).exists())
-        self.assertFalse(Seat.objects.filter(screen_id=screen_id).exists())
+        screen.refresh_from_db()
+        self.assertTrue(screen.is_deleted)
+        self.assertEqual(screen.status, Screen.Status.INACTIVE)
+        self.assertEqual(screen.deleted_by, self.manager)
+        self.assertIsNotNone(screen.deleted_at)
+        self.assertEqual(Seat.objects.filter(screen_id=screen_id).count(), 2)
+        self.assertEqual(self.client.get(f"/api/v1/screens/{screen_id}/").status_code, 404)
         self.assertTrue(AuditLog.objects.filter(entity_id=str(screen_id), action="SCREEN_DELETED").exists())
 
-    def test_rejects_deletion_when_screen_has_customer_history(self):
+    def test_soft_deletion_preserves_customer_history(self):
         screen = Screen.objects.create(
             venue=self.venue,
             name="In Use",
@@ -167,5 +172,40 @@ class ScreenCreationTests(TestCase):
 
         response = self.client.delete(f"/api/v1/screens/{screen.pk}/")
 
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.status_code, 204)
+        screen.refresh_from_db()
+        self.assertTrue(screen.is_deleted)
         self.assertTrue(Screen.objects.filter(pk=screen.pk).exists())
+        self.assertTrue(CustomerSession.objects.filter(seat=seat).exists())
+
+    def test_screen_number_can_be_reused_after_soft_deletion(self):
+        old_screen = Screen.objects.create(
+            venue=self.venue,
+            name="Old Screen 8",
+            screen_number=8,
+            total_rows=1,
+            total_columns=1,
+            status=Screen.Status.INACTIVE,
+            is_deleted=True,
+            deleted_at=timezone.now(),
+            deleted_by=self.manager,
+        )
+
+        response = self.client.post(
+            "/api/v1/screens/",
+            {
+                "venue": self.venue.pk,
+                "name": "New Screen 8",
+                "screen_number": 8,
+                "total_rows": 2,
+                "total_columns": 2,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertNotEqual(response.data["id"], old_screen.pk)
+        self.assertEqual(
+            Screen.objects.filter(venue=self.venue, screen_number=8, is_deleted=False).count(),
+            1,
+        )

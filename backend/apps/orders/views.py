@@ -31,7 +31,7 @@ class CustomerSessionViewSet(viewsets.ViewSet):
         seat = get_object_or_404(
             Seat.objects.select_related("screen", "screen__venue"),
             qr_token=request.data.get("qr_token"), status=Seat.Status.ACTIVE,
-            screen__status="ACTIVE", screen__venue__status="ACTIVE",
+            screen__status="ACTIVE", screen__is_deleted=False, screen__venue__status="ACTIVE",
         )
         session = CustomerSession.objects.create(
             seat=seat,
@@ -130,4 +130,3 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
             if order.status in grouped:
                 grouped[order.status].append(self.get_serializer(order).data)
         return Response(grouped)
-

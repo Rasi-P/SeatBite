@@ -1,4 +1,5 @@
 import secrets
+from django.conf import settings
 from django.db import models
 
 
@@ -35,10 +36,23 @@ class Screen(models.Model):
     total_rows = models.PositiveSmallIntegerField(default=10)
     total_columns = models.PositiveSmallIntegerField(default=12)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="deleted_screens",
+    )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["venue", "screen_number"], name="unique_venue_screen")
+            models.UniqueConstraint(
+                fields=["venue", "screen_number"],
+                condition=models.Q(is_deleted=False),
+                name="unique_active_venue_screen",
+            )
         ]
         ordering = ["screen_number"]
 
@@ -76,4 +90,3 @@ class Seat(models.Model):
 
     def __str__(self):
         return f"{self.screen.name} {self.seat_code}"
-

@@ -155,8 +155,8 @@ export default function VenueManager() {
       title: `Delete ${item.name}?`,
       content: (
         <span>
-          This permanently removes the screen and its {item.seat_count} seats. Screens with customer
-          sessions or order history cannot be deleted.
+          This removes the screen and its {item.seat_count} seats from active venue operations. The
+          records, QR references, customer sessions, and order history remain safely stored.
         </span>
       ),
       okText: "Delete screen",
@@ -166,9 +166,9 @@ export default function VenueManager() {
         try {
           await apiFetch(`/screens/${item.id}/`, { method: "DELETE" });
           await loadScreens();
-          message.success(`${item.name} deleted.`);
+          message.success(`${item.name} removed from active venue operations.`);
         } catch {
-          message.error("This screen has customer or order history. Mark it inactive instead.");
+          message.error("Could not remove this screen.");
         }
       },
     });

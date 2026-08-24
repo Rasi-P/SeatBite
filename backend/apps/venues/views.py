@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import decorators, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -43,7 +44,7 @@ class ScreenViewSet(VenueScopedMixin, viewsets.ModelViewSet):
     filterset_fields = ["venue", "status"]
 
     def get_queryset(self):
-        return self.scope_queryset(super().get_queryset())
+        return self.scope_queryset(super().get_queryset()).filter(is_deleted=False)
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
@@ -104,26 +105,17 @@ class ScreenViewSet(VenueScopedMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         scoped_screen = self.get_object()
         screen = Screen.objects.select_for_update().get(pk=scoped_screen.pk)
-        has_history = screen.orders.exists() or screen.seats.filter(
-            customer_sessions__isnull=False
-        ).exists()
-        if has_history:
-            return Response(
-                {
-                    "detail": (
-                        "This screen has customer sessions or order history and cannot be deleted. "
-                        "Mark it inactive instead."
-                    )
-                },
-                status=status.HTTP_409_CONFLICT,
-            )
         metadata = {
             "venue": screen.venue.name,
             "screen": screen.name,
             "seat_count": screen.seats.count(),
         }
         entity_id = str(screen.pk)
-        screen.delete()
+        screen.is_deleted = True
+        screen.deleted_at = timezone.now()
+        screen.deleted_by = request.user
+        screen.status = Screen.Status.INACTIVE
+        screen.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "status"])
         AuditLog.objects.create(
             user=request.user,
             action="SCREEN_DELETED",
@@ -142,7 +134,9 @@ class SeatViewSet(VenueScopedMixin, viewsets.ModelViewSet):
     search_fields = ["seat_code"]
 
     def get_queryset(self):
-        return self.scope_queryset(super().get_queryset(), "screen__venue")
+        return self.scope_queryset(
+            super().get_queryset(), "screen__venue"
+        ).filter(screen__is_deleted=False)
 
     @decorators.action(detail=True, methods=["post"])
     def regenerate_qr(self, request, pk=None):
@@ -158,7 +152,9 @@ class QRCodeViewSet(VenueScopedMixin, viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def _seat(self, request, pk):
-        queryset = Seat.objects.select_related("screen", "screen__venue")
+        queryset = Seat.objects.select_related("screen", "screen__venue").filter(
+            screen__is_deleted=False
+        )
         if request.user.role != User.Role.SUPER_ADMIN:
             queryset = queryset.filter(screen__venue=request.user.venue)
         return get_object_or_404(queryset, pk=pk)
@@ -175,7 +171,9 @@ class QRCodeViewSet(VenueScopedMixin, viewsets.ViewSet):
 
     @decorators.action(detail=False, methods=["post"])
     def regenerate_screen(self, request):
-        screen = get_object_or_404(Screen, pk=request.data.get("screen_id"))
+        screen = get_object_or_404(
+            Screen, pk=request.data.get("screen_id"), is_deleted=False
+        )
         if request.user.role != User.Role.SUPER_ADMIN and screen.venue_id != request.user.venue_id:
             return Response({"detail": "Outside your venue."}, status=status.HTTP_403_FORBIDDEN)
         for seat in screen.seats.all():
@@ -188,7 +186,9 @@ class QRCodeViewSet(VenueScopedMixin, viewsets.ViewSet):
     @decorators.action(detail=False, methods=["get"], url_path="print-sheet")
     def print_sheet(self, request):
         screen = get_object_or_404(
-            Screen.objects.select_related("venue"), pk=request.query_params.get("screen")
+            Screen.objects.select_related("venue"),
+            pk=request.query_params.get("screen"),
+            is_deleted=False,
         )
         if request.user.role != User.Role.SUPER_ADMIN and screen.venue_id != request.user.venue_id:
             return Response({"detail": "Outside your venue."}, status=status.HTTP_403_FORBIDDEN)

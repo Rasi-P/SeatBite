@@ -47,7 +47,9 @@ class DeliveryAssignmentViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=["get"], url_path="seat-map")
     def seat_map(self, request):
-        screen = get_object_or_404(Screen, pk=request.query_params.get("screen"))
+        screen = get_object_or_404(
+            Screen, pk=request.query_params.get("screen"), is_deleted=False
+        )
         if request.user.role != User.Role.SUPER_ADMIN and screen.venue_id != request.user.venue_id:
             return Response({"detail": "Outside your venue."}, status=status.HTTP_403_FORBIDDEN)
         active_order = Order.objects.filter(
@@ -67,4 +69,3 @@ class DeliveryAssignmentViewSet(viewsets.ModelViewSet):
                 "order_id": seat.active_order_id, "order_number": seat.active_order_number,
             } for seat in seats],
         })
-

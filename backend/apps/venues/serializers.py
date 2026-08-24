@@ -3,11 +3,14 @@ from .models import Screen, Seat, Venue
 
 
 class VenueSerializer(serializers.ModelSerializer):
-    screen_count = serializers.IntegerField(source="screens.count", read_only=True)
+    screen_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Venue
         fields = "__all__"
+
+    def get_screen_count(self, obj):
+        return obj.screens.filter(is_deleted=False).count()
 
 
 class ScreenSerializer(serializers.ModelSerializer):
@@ -17,6 +20,8 @@ class ScreenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Screen
         fields = "__all__"
+        read_only_fields = ["is_deleted", "deleted_at", "deleted_by"]
+        validators = []
 
     def validate_total_rows(self, value):
         if not 1 <= value <= 26:
@@ -29,6 +34,22 @@ class ScreenSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        venue = attrs.get("venue", self.instance.venue if self.instance else None)
+        screen_number = attrs.get(
+            "screen_number", self.instance.screen_number if self.instance else None
+        )
+        if venue and screen_number:
+            duplicate = Screen.objects.filter(
+                venue=venue,
+                screen_number=screen_number,
+                is_deleted=False,
+            )
+            if self.instance:
+                duplicate = duplicate.exclude(pk=self.instance.pk)
+            if duplicate.exists():
+                raise serializers.ValidationError(
+                    {"screen_number": "This screen number is already active at the venue."}
+                )
         if self.instance:
             immutable_changes = {
                 field: "This field cannot be changed after seats and QR codes are generated."
