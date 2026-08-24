@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -134,7 +135,8 @@ class Command(BaseCommand):
         self._seed_orders(venue, screens[1])
         self.stdout.write(self.style.SUCCESS("SeatBite demo data is ready."))
         self.stdout.write("Customer demo: /customer/qr/uJ7cV2nQ9mL4xR8pK6sT3wZ5aB1dF0hG")
-        self.stdout.write("All staff passwords: SeatBite@123")
+        if settings.SEATBITE_SHOW_SEED_CREDENTIALS:
+            self.stdout.write("All staff passwords: SeatBite@123")
 
     def _seed_orders(self, venue, screen):
         products = list(FoodProduct.objects.filter(category__venue=venue)[:8])
@@ -146,7 +148,8 @@ class Command(BaseCommand):
         now = timezone.now()
         for index, status_value in enumerate(statuses):
             number = f"SB-{timezone.localdate():%Y%m%d}-{9001 + index}"
-            if Order.objects.filter(order_number=number).exists():
+            transaction_id = f"SEED-{9001 + index}"
+            if Order.objects.filter(order_number=number).exists() or Payment.objects.filter(transaction_id=transaction_id).exists():
                 continue
             seat = seats[index]
             session = CustomerSession.objects.create(
@@ -169,6 +172,6 @@ class Command(BaseCommand):
             )
             OrderStatusEvent.objects.create(order=order, to_status=status_value, note="Seeded demo order")
             Payment.objects.create(
-                order=order, transaction_id=f"SEED-{9001 + index}", amount=order.total,
+                order=order, transaction_id=transaction_id, amount=order.total,
                 status=Payment.Status.SUCCESS, payment_method=Payment.Method.UPI, paid_at=now,
             )

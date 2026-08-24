@@ -9,6 +9,7 @@ import {
 import { Button, Form, Input, InputNumber, Modal, Select, Table, Tag, message } from "antd";
 import { useEffect, useState } from "react";
 import OpsLayout from "../../components/OpsLayout";
+import { API_URL } from "../../config";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch, apiList } from "../../services/api";
 
@@ -181,8 +182,7 @@ export default function VenueManager() {
   };
 
   const download = async (seat: Seat) => {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
-    const response = await fetch(`${apiUrl}/qr/${seat.id}/image/`, {
+    const response = await fetch(`${API_URL}/qr/${seat.id}/image/`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("seatbite_access")}` },
     });
     if (!response.ok) {
@@ -200,8 +200,7 @@ export default function VenueManager() {
 
   const downloadSheet = async () => {
     if (!screen) return;
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
-    const response = await fetch(`${apiUrl}/qr/print-sheet/?screen=${screen}`, {
+    const response = await fetch(`${API_URL}/qr/print-sheet/?screen=${screen}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("seatbite_access")}` },
     });
     if (!response.ok) {

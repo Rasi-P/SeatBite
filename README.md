@@ -25,6 +25,8 @@ The backend container applies migrations and runs `seed_demo` on startup. The co
 
 ## Demo accounts
 
+These credentials are for local/demo environments only. Do not expose or seed them in production.
+
 All staff accounts use password `SeatBite@123`.
 
 | Experience | Username | Email | Route |
@@ -78,4 +80,4 @@ cd frontend && npm run build
 ```
 
 Architecture and security decisions are documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The endpoint map is in [`docs/API.md`](docs/API.md).
-# SeatBite
+Production deployment instructions for Vercel + Render are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).

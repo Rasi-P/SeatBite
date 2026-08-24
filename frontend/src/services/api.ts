@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+import { API_URL } from "../config";
 
 type ApiOptions = RequestInit & { customer?: boolean };
 
@@ -37,4 +37,3 @@ export async function apiList<T>(path: string, options: ApiOptions = {}): Promis
 
 export const money = (value: string | number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value));
-

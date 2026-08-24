@@ -37,5 +37,5 @@ urlpatterns = [
     path("api/v1/auth/me/", CurrentUserView.as_view(), name="current-user"),
     path("api/v1/", include(router.urls)),
 ]
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

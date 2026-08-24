@@ -2,6 +2,7 @@ import { ArrowLeftOutlined, ArrowRightOutlined, LockOutlined, MailOutlined } fro
 import { Button, Form, Input, Segmented, message } from "antd";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import BrandMark from "../components/BrandMark";
+import { DEMO_LOGIN_ENABLED } from "../config";
 import { useAuth } from "../context/AuthContext";
 
 const accounts = {
@@ -24,9 +25,13 @@ export default function LoginPage() {
       const user = await login(values.username, values.password);
       navigate(user.role === "SUPER_ADMIN" || user.role === "VENUE_MANAGER" ? "/admin" : "/staff");
     } catch {
-      message.error("Login failed. Check that the demo database has been seeded.");
+      message.error("Login failed. Check your username and password.");
     }
   };
+
+  const initialValues = DEMO_LOGIN_ENABLED
+    ? { username: accounts[initial].username, password: "SeatBite@123" }
+    : { username: "", password: "" };
 
   return (
     <main className="login-page">
@@ -40,17 +45,18 @@ export default function LoginPage() {
         <div className="login-form-wrap">
           <span className="eyebrow">STAFF ACCESS</span>
           <h2>Welcome back</h2>
-          <p>Choose a demo role or enter your credentials.</p>
-          <Segmented block defaultValue={initial} options={Object.entries(accounts).map(([value, item]) => ({ value, label: item.label }))} onChange={selectRole} />
-          <Form form={form} layout="vertical" initialValues={{ username: accounts[initial].username, password: "SeatBite@123" }} onFinish={submit}>
+          <p>{DEMO_LOGIN_ENABLED ? "Choose a demo role or enter your credentials." : "Enter your credentials to continue."}</p>
+          {DEMO_LOGIN_ENABLED ? (
+            <Segmented block defaultValue={initial} options={Object.entries(accounts).map(([value, item]) => ({ value, label: item.label }))} onChange={selectRole} />
+          ) : null}
+          <Form form={form} layout="vertical" initialValues={initialValues} onFinish={submit}>
             <Form.Item name="username" label="Username" rules={[{ required: true }]}><Input size="large" prefix={<MailOutlined />} /></Form.Item>
             <Form.Item name="password" label="Password" rules={[{ required: true }]}><Input.Password size="large" prefix={<LockOutlined />} /></Form.Item>
             <Button type="primary" htmlType="submit" size="large" block>Enter dashboard <ArrowRightOutlined /></Button>
           </Form>
-          <small className="demo-note">Demo password: <code>SeatBite@123</code></small>
+          {DEMO_LOGIN_ENABLED ? <small className="demo-note">Demo password: <code>SeatBite@123</code></small> : null}
         </div>
       </section>
     </main>
   );
 }
-

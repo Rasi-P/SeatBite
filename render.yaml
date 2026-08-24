@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: seatbite-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
+    healthCheckPath: /api/v1/products/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: seatbite-db
+          property: connectionString
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CORS_ALLOWED_ORIGIN_REGEXES
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: SEATBITE_CUSTOMER_URL
+        sync: false
+      - key: SEATBITE_SHOW_SEED_CREDENTIALS
+        value: "false"
+      - key: WEB_CONCURRENCY
+        value: "3"
+
+databases:
+  - name: seatbite-db
+    plan: free
