@@ -18,6 +18,16 @@ class ScreenSerializer(serializers.ModelSerializer):
         model = Screen
         fields = "__all__"
 
+    def validate_total_rows(self, value):
+        if not 1 <= value <= 26:
+            raise serializers.ValidationError("Rows must be between 1 and 26.")
+        return value
+
+    def validate_total_columns(self, value):
+        if not 1 <= value <= 50:
+            raise serializers.ValidationError("Seats per row must be between 1 and 50.")
+        return value
+
 
 class SeatSerializer(serializers.ModelSerializer):
     screen_name = serializers.CharField(source="screen.name", read_only=True)

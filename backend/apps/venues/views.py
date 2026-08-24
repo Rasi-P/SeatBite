@@ -1,5 +1,6 @@
 from io import BytesIO
 from django.conf import settings
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import decorators, status, viewsets
@@ -43,6 +44,47 @@ class ScreenViewSet(VenueScopedMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         return self.scope_queryset(super().get_queryset())
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        if request.user.role != User.Role.SUPER_ADMIN:
+            if not request.user.venue_id:
+                return Response(
+                    {"detail": "Your account is not assigned to a venue."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            data["venue"] = request.user.venue_id
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        screen = serializer.save()
+        seats = [
+            Seat(
+                screen=screen,
+                row_label=chr(65 + row_index),
+                seat_number=seat_number,
+                seat_code=f"{chr(65 + row_index)}{seat_number:02d}",
+            )
+            for row_index in range(screen.total_rows)
+            for seat_number in range(1, screen.total_columns + 1)
+        ]
+        Seat.objects.bulk_create(seats)
+        AuditLog.objects.create(
+            user=self.request.user,
+            action="SCREEN_CREATED",
+            entity_type="Screen",
+            entity_id=str(screen.pk),
+            metadata={
+                "venue": screen.venue.name,
+                "screen": screen.name,
+                "seat_count": len(seats),
+            },
+        )
 
 
 class SeatViewSet(VenueScopedMixin, viewsets.ModelViewSet):
