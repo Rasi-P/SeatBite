@@ -30,10 +30,9 @@ services:
     build: ./backend
     command: >-
       sh -c "python manage.py migrate &&
-      python manage.py seed_demo &&
       python manage.py runserver 0.0.0.0:8000"
     environment:
-      DJANGO_SECRET_KEY: seatbite-docker-demo-secret
+      DJANGO_SECRET_KEY: seatbite-docker-local-secret
       DJANGO_DEBUG: "true"
       DJANGO_ALLOWED_HOSTS: "*"
       DATABASE_URL: postgresql://seatbite:seatbite@db:5432/seatbite

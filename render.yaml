@@ -26,8 +26,6 @@ services:
         sync: false
       - key: SEATBITE_CUSTOMER_URL
         sync: false
-      - key: SEATBITE_SHOW_SEED_CREDENTIALS
-        value: "false"
       - key: WEB_CONCURRENCY
         value: "3"
 

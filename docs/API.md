@@ -8,8 +8,8 @@ Base URL: `http://localhost:8000/api/v1`
 | --- | --- | --- |
 | `POST` | `/sessions/resolve/` | Resolve a seat QR and create an expiring session |
 | `GET` | `/sessions/current/` | Return the seat for `X-Session-Token` |
-| `GET` | `/categories/?venue=CMX-CAL` | Public active categories |
-| `GET` | `/products/?venue=CMX-CAL` | Public available products |
+| `GET` | `/categories/?venue={venue_code}` | Public active categories for a venue |
+| `GET` | `/products/?venue={venue_code}` | Public available products for a venue |
 | `GET` | `/cart/current/` | Get the session's active cart |
 | `POST` | `/cart/items/` | Set quantity for a product |
 | `DELETE` | `/cart/items/{item_id}/` | Remove a cart line |
@@ -33,4 +33,3 @@ JWT is obtained from `POST /auth/token/` and sent as `Authorization: Bearer <tok
 | `/qr/print-sheet/?screen={id}` | Download printable screen QR sheet PDF |
 | `/categories/`, `/products/`, `/offers/` | Catalog management |
 | `/staff/`, `/audit-logs/` | Staff and audit management |
-

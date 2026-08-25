@@ -12,11 +12,9 @@ This repository is prepared for a split deployment:
 - Django now uses production-safe host, CORS, CSRF, HTTPS, and static-file settings driven by environment variables.
 - WhiteNoise serves Django static files, including the admin UI, on Render.
 - Render build and start scripts run `collectstatic`, apply migrations, and start Gunicorn.
-- Production deployment does not run `seed_demo`.
-- Seeded demo passwords are no longer written to logs unless explicitly enabled.
 - The frontend API base URL is environment-driven and reused consistently.
-- Demo login autofill and password hints are disabled unless `VITE_ENABLE_DEMO_LOGIN=true`.
 - Vercel SPA routing is configured so deep links resolve to `index.html`.
+- Startup is clean: no demo records, demo accounts, or seed passwords are created automatically.
 
 ## Vercel frontend
 
@@ -25,10 +23,6 @@ Create a Vercel project from this repository and set the Root Directory to `fron
 Set this environment variable in Vercel:
 
 - `VITE_API_URL=https://<your-render-backend-domain>/api/v1`
-
-Optional:
-
-- `VITE_ENABLE_DEMO_LOGIN=false`
 
 Build settings can stay on Vercel defaults once the Root Directory is `frontend`.
 
@@ -43,7 +37,7 @@ If your existing Render service is already configured as a Docker deploy, the ba
 - `collectstatic` runs during the image build
 - `start.sh` runs on container start
 - `start.sh` applies migrations and then starts Gunicorn on Render's `$PORT`
-- demo seeding is not part of the production startup path
+- no seed data is created in the production startup path
 
 ### Blueprint path
 
@@ -84,7 +78,6 @@ Recommended:
 - `CORS_ALLOWED_ORIGIN_REGEXES=` only if you intentionally allow preview domains
 - `WEB_CONCURRENCY=3`
 - `DJANGO_DB_CONN_MAX_AGE=60`
-- `SEATBITE_SHOW_SEED_CREDENTIALS=false`
 
 Notes:
 
@@ -100,11 +93,11 @@ Notes:
 - Static files are collected into `backend/staticfiles` during Render builds and served by WhiteNoise.
 - No persistent media disk is required for the current app because product images are external URLs and QR/PDF assets are generated in memory.
 
-## Demo data
+## Initial production data
 
-- Do not run `python manage.py seed_demo` in production.
-- Create a real admin user on Render with `python manage.py createsuperuser`.
-- Demo credentials are for local/demo environments only.
+- Create your first real admin user on Render with `python manage.py createsuperuser`.
+- Sign in and load your venue, screens, seats, QR codes, catalog, offers, and staff accounts.
+- Customer ordering should begin only from generated live seat QR codes.
 
 ## Deployment order
 

@@ -1,15 +1,15 @@
 # SeatBite
 
-**Food delivered to your seat.** SeatBite is a production-minded Phase-1 cinema food ordering demo with a mobile customer experience, live kitchen/delivery operations, and a venue admin console.
+**Food delivered to your seat.** SeatBite is a cinema food ordering platform with a mobile customer experience, live kitchen and delivery operations, and a venue admin console.
 
 ## What works
 
-- Secure seat QR resolution for `CineMax Calicut`, including the scripted `Screen 2 · F12` demo.
+- Secure seat QR resolution with seat-specific customer sessions.
 - Venue-filtered food catalog with real photography, offers, server-priced cart, tax, and immutable snapshots.
 - Simulated UPI/card/cash payment that confirms a real backend order.
 - Role-validated `CONFIRMED -> PREPARING -> READY -> OUT_FOR_DELIVERY -> DELIVERED` workflow.
 - Customer tracking polling, staff Kanban, delivery seat map, admin analytics, catalog management, seats, and QR downloads.
-- PostgreSQL/Redis Docker environment, deterministic seed command, audit history, and backend tests.
+- PostgreSQL/Redis Docker environment, audit history, and backend tests.
 
 ## Quick start
 
@@ -21,34 +21,25 @@ docker compose up --build
 
 Open [http://localhost:5173](http://localhost:5173). The backend is at [http://localhost:8000](http://localhost:8000), and the browsable Django admin is at [http://localhost:8000/admin](http://localhost:8000/admin).
 
-The backend container applies migrations and runs `seed_demo` on startup. The command is idempotent, so restarting does not duplicate the scripted dataset.
+The backend container applies migrations on startup. It does not seed demo data automatically.
 
-## Demo accounts
+## Initial setup
 
-These credentials are for local/demo environments only. Do not expose or seed them in production.
+After the stack is running, create your first admin user:
 
-All staff accounts use password `SeatBite@123`.
-
-| Experience | Username | Email | Route |
-| --- | --- | --- | --- |
-| Super admin | `admin` | `admin@seatbite.demo` | `/admin` |
-| Venue manager | `manager` | `manager@seatbite.demo` | `/admin` |
-| Kitchen | `kitchen` | `kitchen@seatbite.demo` | `/staff` |
-| Delivery | `delivery` | `delivery@seatbite.demo` | `/staff` |
-
-Customer login is not required. The seeded F12 QR opens:
-
-```text
-http://localhost:5173/customer/qr/uJ7cV2nQ9mL4xR8pK6sT3wZ5aB1dF0hG
+```bash
+docker compose exec backend python manage.py createsuperuser
 ```
 
-## Demonstration flow
+Then sign in at `/admin` or `/login` and load your real data:
 
-1. Open the customer demo and confirm `Screen 2 · Row F · Seat 12`.
-2. Add Caramel Popcorn, Coke, or a Movie Combo, then complete the simulated payment.
-3. Open a separate window as `kitchen`; accept the new order and mark it ready.
-4. Sign in as `delivery`; start the delivery, use the seat map, and mark it delivered.
-5. Watch the customer order page update automatically throughout the workflow.
+1. Create your venue.
+2. Create screens and seats.
+3. Generate seat QR codes.
+4. Add categories, products, and offers.
+5. Create staff users and assign roles.
+
+Customer ordering starts when guests scan one of the generated seat QR codes.
 
 ## Local development without Docker
 
@@ -60,7 +51,7 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 cd backend
 python manage.py migrate
-python manage.py seed_demo
+python manage.py createsuperuser
 python manage.py runserver
 ```
 

@@ -20,7 +20,7 @@ def env_list(name, default=""):
 IS_RENDER = env_bool("RENDER") or bool(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
 DEBUG = env_bool("DJANGO_DEBUG", not IS_RENDER)
 
-default_secret_key = "seatbite-demo-only-secret-key" if DEBUG else ""
+default_secret_key = "seatbite-local-dev-secret-key" if DEBUG else ""
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", default_secret_key)
 if not SECRET_KEY:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DEBUG is false.")
@@ -162,4 +162,3 @@ X_FRAME_OPTIONS = "DENY"
 CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
 SEATBITE_CUSTOMER_URL = os.getenv("SEATBITE_CUSTOMER_URL", "http://localhost:5173/customer/qr").rstrip("/")
-SEATBITE_SHOW_SEED_CREDENTIALS = env_bool("SEATBITE_SHOW_SEED_CREDENTIALS", DEBUG)

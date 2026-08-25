@@ -23,7 +23,7 @@ The browser never supplies authoritative totals, order state, seat ownership, or
 | `venues` | Venue, screen, seat, secure QR lifecycle |
 | `catalog` | Categories, products, venue offers |
 | `orders` | Customer sessions, cart snapshots, orders, state events |
-| `payments` | Provider-ready payment records and demo approval |
+| `payments` | Provider-ready payment records and simulated approval |
 | `delivery` | Runner assignment and live seat-map projection |
 | `analytics` | Query-backed Phase-1 operational aggregates |
 
@@ -53,4 +53,3 @@ PENDING -> CONFIRMED -> PREPARING -> READY -> OUT_FOR_DELIVERY -> DELIVERED
 - Replace customer/staff polling with Django Channels or a managed event service.
 - Move product images to object storage while preserving the URL-backed API contract.
 - Add venue-specific taxes and inventory as separate pricing/inventory services rather than expanding the order model.
-
