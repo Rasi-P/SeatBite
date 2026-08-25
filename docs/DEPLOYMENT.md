@@ -38,6 +38,13 @@ The SPA rewrite lives in `frontend/vercel.json`.
 
 You can deploy either with the `render.yaml` Blueprint in the repo root or by creating the service manually.
 
+If your existing Render service is already configured as a Docker deploy, the backend `Dockerfile` now handles the same production flow directly:
+
+- `collectstatic` runs during the image build
+- `start.sh` runs on container start
+- `start.sh` applies migrations and then starts Gunicorn on Render's `$PORT`
+- demo seeding is not part of the production startup path
+
 ### Blueprint path
 
 The included `render.yaml` provisions:
@@ -57,9 +64,9 @@ The web service uses:
 If you do not use the Blueprint, create:
 
 1. A PostgreSQL database on Render.
-2. A Python web service pointing at this repository with Root Directory `backend`.
-3. Build Command `./build.sh`
-4. Start Command `./start.sh`
+2. Either:
+   - a Python web service pointing at this repository with Root Directory `backend`, Build Command `./build.sh`, and Start Command `./start.sh`
+   - or a Docker web service pointing at `backend/Dockerfile`
 
 ### Backend environment variables
 
